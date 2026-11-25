@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Face Attendance</title>
+  <meta name="description" content="Snap the classroom: the app counts faces, recognises students and marks the register. Written in Python, running in your browser.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>🎓 Face-based Class Attendance</h1>
+    <p class="lead">Stop wasting class time on roll call. <b>Snap the classroom</b> and the app <b>counts the faces</b>,
+      <b>recognises each student</b> and <b>marks the register</b>. Faces it doesn't know yet can be named on the spot.</p>
+    <p class="py">🐍 Written in Python (OpenCV + NumPy), running right here in your browser with Pyodide.</p>
+    <p class="privacy">🔒 <b>Privacy:</b> photos and face data never leave this device. The class list and register are kept
+      only in this browser's storage. Use <b>Download backup</b> to move them, and <b>Delete everything</b> to wipe them.
+      Ask for consent before enrolling anyone's face.</p>
+  </header>
+
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    <div>
+      <b id="loadText">Starting Python…</b>
+      <div class="small">First visit downloads about 45 MB (Python, OpenCV and the face models). Later visits are faster.</div>
+    </div>
+  </div>
+
+  <main>
+    <section class="card">
+      <h2>1. Take a class photo</h2>
+      <div class="tabs">
+        <button id="tabCam" class="tab active">📷 Webcam</button>
+        <button id="tabUpload" class="tab">🖼️ Upload a photo</button>
+      </div>
+      <div class="stage">
+        <video id="video" playsinline muted></video>
+        <img id="preview" alt="" hidden>
+        <div id="camHint" class="hint">Press <b>Start camera</b>, or upload a photo.</div>
+      </div>
+      <input id="file" type="file" accept="image/*" hidden>
+      <div class="row">
+        <button id="startCam" class="secondary">Start camera</button>
+        <button id="takeBtn" class="primary" disabled>Take attendance</button>
+      </div>
+      <label class="date">Register date <input id="date" type="date"></label>
+    </section>
+
+    <section class="card">
+      <h2>2. Result</h2>
+      <div id="banner" class="banner idle">📷 Ready</div>
+      <canvas id="out" hidden></canvas>
+      <div id="faces" class="faces"></div>
+    </section>
+  </main>
+
+  <section class="card wide">
+    <div class="head-row">
+      <h2>3. Register</h2>
+      <div class="row tight">
+        <button id="csvBtn" class="secondary">⬇️ Download CSV</button>
+        <button id="backupBtn" class="secondary">💾 Download backup</button>
+        <button id="restoreBtn" class="secondary">📂 Restore backup</button>
+        <button id="clearBtn" class="secondary danger">🗑️ Delete everything</button>
+        <input id="restoreFile" type="file" accept=".json,application/json" hidden>
+      </div>
+    </div>
+    <p id="regSummary" class="small"></p>
+    <div class="scroll">
+      <table id="reg"></table>
+    </div>
+    <p class="small">Tick or untick a box to correct the register by hand. Click a name to rename a student.</p>
+  </section>
+
+  <section class="card wide">
+    <h2>4. Quick setup: build the class list from a few photos</h2>
+    <p class="small">No need to photograph each student. Upload 2 to 10 class photos and the app <b>groups the faces by person</b>
+      without knowing any names (unsupervised clustering). Type a name under each group to add that student.</p>
+    <div class="row tight">
+      <button id="poolAdd" class="secondary">🖼️ Choose class photos</button>
+      <button id="poolClear" class="secondary">Clear</button>
+      <input id="poolFiles" type="file" accept="image/*" multiple hidden>
+    </div>
+    <p id="poolInfo" class="small"></p>
+    <div id="groups" class="groups"></div>
+  </section>
+
+  <section class="card wide how">
+    <h2>How it works</h2>
+    <ol>
+      <li><b>Face detection and counting:</b> OpenCV's YuNet detector finds every face in the photo and counts them.</li>
+      <li><b>Face fingerprint:</b> each face is lined up by its eyes, nose and mouth and turned into 128 numbers by the SFace
+        recognition network. Photos of the same person give similar numbers.</li>
+      <li><b>Recognition:</b> each face is matched to the closest enrolled student (cosine similarity), and each student
+        can only be matched once per photo. Unknown faces are shown in orange so you can name them.</li>
+      <li><b>Grouping:</b> for quick setup, faces from several photos are grouped by person with a DBSCAN-style clustering,
+        so you only type each name once.</li>
+      <li><b>Attendance tracker:</b> the register keeps who was present on each date, the attendance rate and a CSV export.</li>
+    </ol>
+    <p class="small">All of this is Python (<code>attendance.py</code> and <code>register.py</code>) running in your browser through
+      <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>.
+      <a href="https://github.com/Knarf24/face-attendance" target="_blank" rel="noopener">See the code on GitHub</a>.</p>
+  </section>
+
+  <canvas id="grab" hidden></canvas>
+  <script src="pyodide/pyodide.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
