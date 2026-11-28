@@ -19,11 +19,11 @@
       Ask for consent before enrolling anyone's face.</p>
   </header>
 
-  <div id="loading" class="loading">
+  <div id="loading" class="loading slim" role="status">
     <div class="spinner"></div>
     <div>
-      <b id="loadText">Starting Python…</b>
-      <div class="small">First visit downloads about 45 MB (Python, OpenCV and the face models). Later visits are faster.</div>
+      <b id="loadText">Starting Python in the background…</b>
+      <div class="small">The first visit downloads Python, OpenCV and the face models once (about 45 MB). After that they are saved on this device.</div>
     </div>
   </div>
 
@@ -105,6 +105,7 @@
 
   <canvas id="grab" hidden></canvas>
   <script src="pyodide/pyodide.js"></script>
+  <script src="pyfast.js"></script>
   <script src="main.js"></script>
 </body>
 </html>

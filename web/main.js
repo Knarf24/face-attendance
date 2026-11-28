@@ -23,19 +23,22 @@ function save() {
   catch (e) { console.warn("Could not save in this browser", e); }
 }
 
+// The page is usable right away (camera, upload); Python, OpenCV and the models load in the background,
+// all at the same time, and attendance taken before they are ready waits for them.
 async function startPython() {
   try {
-    setLoading("Starting Python…");
-    py = await loadPyodide({ indexURL: new URL("pyodide/", location.href).href });
+    const files = Promise.all([...PY_FILES, ...MODEL_FILES].map(async (f) => {
+      const r = await fetch(f);
+      if (!r.ok) throw new Error(`Could not load ${f}`);
+      return [f, new Uint8Array(await r.arrayBuffer())];
+    }));
+    files.catch(() => {}); // reported below
+    py = await loadPyodideFast();
     setLoading("Loading OpenCV and NumPy…");
     await py.loadPackage(["numpy", "opencv-python"]);
     setLoading("Loading the face models…");
     py.FS.mkdirTree("/home/pyodide/models");
-    await Promise.all([...PY_FILES, ...MODEL_FILES].map(async (f) => {
-      const r = await fetch(f);
-      if (!r.ok) throw new Error(`Could not load ${f}`);
-      py.FS.writeFile(`/home/pyodide/${f}`, new Uint8Array(await r.arrayBuffer()));
-    }));
+    for (const [f, bytes] of await files) py.FS.writeFile(`/home/pyodide/${f}`, bytes);
     setLoading("Opening your class register…");
     reg = py.pyimport("register");
     let saved = "";
@@ -43,19 +46,23 @@ async function startPython() {
     state = JSON.parse(reg.import_state(saved));
     renderRegister();
     $("loading").classList.add("done");
+    document.documentElement.dataset.py = "ready";
     updateReady();
   } catch (e) {
     console.error(e);
     $("loading").classList.add("error");
     setLoading("Sorry, Python could not start in this browser. Try Chrome, Edge or Firefox. (" + e.message + ")");
     document.querySelector(".spinner").style.display = "none";
+    updateReady();
   }
+  // Keeps Python saved on this device so the next visit starts without downloading it (see sw.js).
+  if ("serviceWorker" in navigator && isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 
 // ---- camera and photos ---------------------------------------------------------
 function updateReady() {
   const haveImage = mode === "cam" ? !!stream : uploaded;
-  $("takeBtn").disabled = !(reg && haveImage);
+  $("takeBtn").disabled = !haveImage || $("loading").classList.contains("error");
   $("poolAdd").disabled = !reg;
 }
 
@@ -127,9 +134,13 @@ function scanCanvas(c) {
 // ---- 1 + 2: take attendance ---------------------------------------------------------
 async function takeAttendance() {
   $("takeBtn").disabled = true;
-  $("takeBtn").textContent = "Looking for faces…";
+  $("takeBtn").textContent = reg ? "Looking for faces…" : "Getting the face models ready…";
   await new Promise((r) => setTimeout(r, 30)); // let the button repaint
   try {
+    await pyReady;
+    if (!reg) throw new Error("Python could not start");
+    $("takeBtn").textContent = "Looking for faces…";
+    await new Promise((r) => setTimeout(r, 30));
     const c = grabFrame();
     lastShot = c;
     const { rgba, result } = scanCanvas(c);
@@ -349,4 +360,5 @@ $("poolFiles").onchange = async () => {
 };
 $("poolClear").onclick = () => { if (reg) reg.pool_clear(); poolPhotos = []; $("groups").innerHTML = ""; $("poolInfo").textContent = ""; };
 
-startPython();
+const pyReady = startPython();
+document.documentElement.dataset.ui = "ready";
